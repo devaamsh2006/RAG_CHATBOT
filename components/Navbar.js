@@ -3,20 +3,25 @@
 import { motion } from "framer-motion";
 import { Upload, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
-export default function Navbar({ activeTab, setActiveTab }) {
+export default function Navbar() {
+    const pathname = usePathname();
+    const activeTab = pathname.includes("/chat") ? "chat" : "upload";
+
     const tabs = [
-        { id: "upload", label: "Upload Documents", icon: Upload },
-        { id: "chat", label: "AI Chat", icon: MessageSquare },
+        { id: "upload", label: "Upload Documents", icon: Upload, href: "/upload" },
+        { id: "chat", label: "AI Chat", icon: MessageSquare, href: "/chat" },
     ];
 
     return (
         <nav className="w-full max-w-md mx-auto mb-8">
             <div className="glass-panel rounded-full p-1 flex items-center justify-between relative">
                 {tabs.map((tab) => (
-                    <button
+                    <Link
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
+                        href={tab.href}
                         className={cn(
                             "relative flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-full text-sm font-medium transition-colors duration-300 z-10",
                             activeTab === tab.id ? "text-white" : "text-slate-400 hover:text-slate-200"
@@ -31,7 +36,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
                         )}
                         <tab.icon className="w-4 h-4 relative z-10" />
                         <span className="relative z-10">{tab.label}</span>
-                    </button>
+                    </Link>
                 ))}
             </div>
         </nav>

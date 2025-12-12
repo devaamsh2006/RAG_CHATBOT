@@ -4,7 +4,16 @@ import { supabase } from '@/lib/supabase';
 
 export async function POST(request) {
     try {
-        const { message, messages: history } = await request.json();
+        const { message, messages: history, chatId } = await request.json();
+
+        // Save User Message
+        if (chatId) {
+            await supabase.from('messages').insert({
+                chat_id: chatId,
+                role: 'user',
+                content: message
+            });
+        }
 
         // 1. Generate Embedding for the query
         const embedding = await generateEmbedding(message);
@@ -51,7 +60,41 @@ ${contextText}
 
         const responseMessage = await getChatCompletion(chatMessages);
 
-        return NextResponse.json(responseMessage);
+        let chatTitle = null;
+
+        // Generate Title if it's the first USER message (history might contain greetings)
+        const hasUserHistory = history && history.some(msg => msg.role === 'user');
+
+        if (chatId && !hasUserHistory) {
+            try {
+                const titlePrompt = [
+                    { role: 'system', content: 'You are a helpful assistant.' },
+                    { role: 'user', content: `Generate a short, concise title (max 5 words) for this chat based on the initial user message: "${message}". Return ONLY the title, no quotes or other text.` }
+                ];
+                const titleResponse = await getChatCompletion(titlePrompt);
+                chatTitle = titleResponse.content.trim().replace(/^["']|["']$/g, ''); // Remove quotes if present
+
+                if (chatTitle) {
+                    await supabase
+                        .from('chats')
+                        .update({ title: chatTitle })
+                        .eq('id', chatId);
+                }
+            } catch (err) {
+                console.error("Failed to generate title:", err);
+            }
+        }
+
+        // Save AI Message
+        if (chatId) {
+            await supabase.from('messages').insert({
+                chat_id: chatId,
+                role: 'assistant',
+                content: responseMessage.content
+            });
+        }
+
+        return NextResponse.json({ ...responseMessage, chatTitle });
     } catch (error) {
         console.error('Chat processing error:', error);
         return NextResponse.json({ error: error.message || 'Chat failed' }, { status: 500 });
